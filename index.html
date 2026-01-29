@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>運動管制系統 v3.2</title>
+    <title>workoutt V1.0</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -14,7 +14,6 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
 
-        /* 導覽列 */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 500px; background: var(--card); display: flex; border-top: 1px solid var(--border); z-index: 1000; }
         .nav-item { flex: 1; padding: 15px 0; text-align: center; cursor: pointer; font-size: 0.85rem; color: var(--accent); font-weight: bold; }
         .nav-item.active { color: var(--success); border-top: 3px solid var(--success); }
@@ -23,35 +22,34 @@
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* 月曆元件 */
         .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 12px; border: 1px solid var(--border); }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
         .day { padding: 12px 0; border-radius: 10px; font-size: 0.85rem; cursor: pointer; color: #b0ada5; position: relative; }
         .day.selected { background: var(--success); color: white; }
-        /* 只有 record 類別會觸發點點 */
         .day.has-record::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: var(--success); border-radius: 50%; }
         .day.selected.has-record::after { background: white; }
 
-        /* 身體資訊 (無單位) */
         .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .input-btn-group { display: flex; flex-direction: column; background: var(--item-bg); padding: 12px 5px; border-radius: 12px; border: 1px solid var(--border); align-items: center; }
         .input-btn-group label { font-size: 0.75rem; color: var(--success); margin-bottom: 8px; font-weight: bold; }
         .input-btn-group input { width: 100%; border: none; background: transparent; text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--text); outline: none; }
         .bmi-display { margin-top: 10px; padding: 10px; background: var(--success); color: white; border-radius: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; }
 
-        /* 項目按鈕 */
         .section-title { font-size: 0.9rem; font-weight: bold; margin: 15px 0 8px 5px; color: var(--success); border-left: 4px solid var(--success); padding-left: 8px; }
         .grid-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .opt-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px; text-align: center; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
         .opt-card.active { background: var(--success); color: white; border-color: var(--success); }
 
-        /* 甘特圖表格 */
         .gantt-container { width: 100%; overflow-x: auto; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
-        table { border-collapse: collapse; width: 100%; font-size: 0.7rem; color: var(--text); }
-        th, td { border: 1px solid var(--border); padding: 8px 4px; text-align: center; min-width: 30px; }
+        table { border-collapse: collapse; width: 100%; font-size: 0.65rem; color: var(--text); }
+        th, td { border: 1px solid var(--border); padding: 8px 2px; text-align: center; min-width: 25px; }
         th { background: var(--item-bg); color: var(--success); position: sticky; left: 0; z-index: 2; }
-        td:first-child { background: var(--item-bg); position: sticky; left: 0; z-index: 1; font-weight: bold; min-width: 75px; }
-        .check-dot { width: 12px; height: 12px; background: var(--success); border-radius: 3px; margin: 0 auto; }
+        /* 凍結第一欄(項目)與最後一欄(統計) */
+        td:first-child, th:first-child { background: var(--item-bg); position: sticky; left: 0; z-index: 1; font-weight: bold; min-width: 70px; }
+        .col-stat { font-weight: bold; color: var(--success); background: #fdfdfb; min-width: 35px; }
+
+        .check-dot { width: 10px; height: 10px; background: var(--success); border-radius: 50%; margin: 0 auto; }
+        .btn-full { background: var(--accent); color: white; width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; margin-top: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -81,7 +79,7 @@
         <div class="grid-options" id="list-heavy"></div>
         <div class="section-title">有氧運動</div>
         <div class="grid-options" id="list-cardio"></div>
-        <div class="section-title">飲食控制</div>
+        <div class="section-title">飲食控制 (單選)</div>
         <div class="grid-options" id="list-diet"></div>
     </div>
 
@@ -98,7 +96,7 @@
     <div id="page-summary" class="page">
         <div class="section-title">數據趨勢圖</div>
         <div class="card"><canvas id="trendChart" height="250"></canvas></div>
-        <button style="background:var(--accent); color:white; width:100%; padding:15px; border-radius:12px; border:none; font-weight:bold; margin-top:20px;" onclick="exportToCSV()">匯出 CSV 備份</button>
+        <button class="btn-full" onclick="exportToCSV()">下載歷史紀錄 CSV</button>
     </div>
 
     <div class="bottom-nav">
@@ -137,7 +135,6 @@
         const stats = { h: document.getElementById('height').value, w: document.getElementById('weight').value, f: document.getElementById('bodyFat').value };
         localStorage.setItem('stats_' + selectedDateStr, JSON.stringify(stats));
         if(stats.h) localStorage.setItem('global_height', stats.h);
-        // 此處不調用 renderCalendar，因為身高體重不觸發點點
     }
 
     function initButtons() {
@@ -150,11 +147,24 @@
                 div.innerText = item;
                 div.onclick = () => {
                     let saved = JSON.parse(localStorage.getItem(selectedDateStr) || '[]');
-                    if (saved.includes(item)) saved = saved.filter(i => i !== item);
-                    else saved.push(item);
+                    
+                    // 飲食控制單選邏輯
+                    if (key === 'diet') {
+                        if (saved.includes(item)) {
+                            saved = saved.filter(i => i !== item);
+                        } else {
+                            // 先移除所有的飲食選項，再加入當前點擊的
+                            saved = saved.filter(i => !workoutData.diet.includes(i));
+                            saved.push(item);
+                        }
+                    } else {
+                        // 重訓與有氧複選邏輯
+                        if (saved.includes(item)) saved = saved.filter(i => i !== item);
+                        else saved.push(item);
+                    }
+                    
                     localStorage.setItem(selectedDateStr, JSON.stringify(saved));
-                    updateButtonStates(); 
-                    renderCalendar(); // 點選運動項目時更新月曆點點
+                    updateButtonStates(); renderCalendar();
                 };
                 div.setAttribute('data-name', item);
                 container.appendChild(div);
@@ -169,49 +179,34 @@
         });
     }
 
-    // 重點修正：僅檢查運動/飲控項目
-    function renderCalendar() {
-        const grid = document.getElementById('calendarGrid');
-        const y = currentViewDate.getFullYear(), m = currentViewDate.getMonth();
-        document.getElementById('monthYearDisplay').innerText = `${y}年 ${m + 1}月`;
-        grid.innerHTML = '';
-        const firstDay = new Date(y, m, 1).getDay(), lastDate = new Date(y, m + 1, 0).getDate();
-        for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-        for (let d = 1; d <= lastDate; d++) {
-            const s = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            // 只抓取運動清單，不看 stats_
-            const record = JSON.parse(localStorage.getItem(s) || '[]');
-            const hasWorkoutRecord = record.length > 0;
-            grid.innerHTML += `<div class="day ${s===selectedDateStr?'selected':''} ${hasWorkoutRecord?'has-record':''}" onclick="selectDate('${s}')">${d}</div>`;
-        }
-    }
-
-    function selectDate(s) {
-        selectedDateStr = s; document.getElementById('selectedDateText').innerText = `日期：${s}`;
-        const saved = JSON.parse(localStorage.getItem('stats_' + s) || '{}');
-        document.getElementById('height').value = saved.h || localStorage.getItem('global_height') || "";
-        document.getElementById('weight').value = saved.w || "";
-        document.getElementById('bodyFat').value = saved.f || "";
-        calcBMI(); updateButtonStates(); renderCalendar();
-    }
-
-    // 其他邏輯保持不變 (Gantt, Chart, Export...)
+    // 渲染甘特圖並加上統計
     function renderGantt() {
         const y = currentViewDate.getFullYear(), m = currentViewDate.getMonth();
         document.getElementById('ganttTitle').innerText = `${m+1}月 管制回顧`;
         const lastDay = new Date(y, m+1, 0).getDate();
+        
         let headHtml = '<th>項目</th>';
         for (let d = 1; d <= lastDay; d++) headHtml += `<th>${d}</th>`;
+        headHtml += `<th class="col-stat">統計</th>`; // 新增統計標題
         document.getElementById('ganttHead').innerHTML = headHtml;
+
         const allItems = [...workoutData.heavy, ...workoutData.cardio, ...workoutData.diet];
         let bodyHtml = '';
+        
         allItems.forEach(item => {
+            let itemCounter = 0; // 統計計數器
             bodyHtml += `<tr><td>${item}</td>`;
             for (let d = 1; d <= lastDay; d++) {
                 const s = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 const dayData = JSON.parse(localStorage.getItem(s) || '[]');
-                bodyHtml += `<td>${dayData.includes(item) ? '<div class="check-dot"></div>' : ''}</td>`;
+                if (dayData.includes(item)) {
+                    bodyHtml += `<td><div class="check-dot"></div></td>`;
+                    itemCounter++;
+                } else {
+                    bodyHtml += `<td></td>`;
+                }
             }
+            bodyHtml += `<td class="col-stat">${itemCounter}</td>`; // 填入統計數字
             bodyHtml += `</tr>`;
         });
         document.getElementById('ganttBody').innerHTML = bodyHtml;
@@ -238,16 +233,62 @@
         });
     }
 
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const y = currentViewDate.getFullYear(), m = currentViewDate.getMonth();
+        document.getElementById('monthYearDisplay').innerText = `${y}年 ${m + 1}月`;
+        grid.innerHTML = '';
+        const firstDay = new Date(y, m, 1).getDay(), lastDate = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
+        for (let d = 1; d <= lastDate; d++) {
+            const s = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const record = JSON.parse(localStorage.getItem(s) || '[]');
+            grid.innerHTML += `<div class="day ${s===selectedDateStr?'selected':''} ${record.length>0?'has-record':''}" onclick="selectDate('${s}')">${d}</div>`;
+        }
+    }
+
+    function selectDate(s) {
+        selectedDateStr = s; document.getElementById('selectedDateText').innerText = `日期：${s}`;
+        const saved = JSON.parse(localStorage.getItem('stats_' + s) || '{}');
+        document.getElementById('height').value = saved.h || localStorage.getItem('global_height') || "";
+        document.getElementById('weight').value = saved.w || "";
+        document.getElementById('bodyFat').value = saved.f || "";
+        calcBMI(); updateButtonStates(); renderCalendar();
+    }
+
     function changeMonth(n) { currentViewDate.setMonth(currentViewDate.getMonth() + n); renderCalendar(); }
 
+    // 修正後的匯出功能
     function exportToCSV() {
-        let csv = "\ufeff日期,體重,體脂,項目\n";
-        Object.keys(localStorage).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/)).sort().forEach(k => {
-            const s = JSON.parse(localStorage.getItem('stats_' + k) || '{}'), w = JSON.parse(localStorage.getItem(k) || '[]');
-            csv += `${k},${s.w||''},${s.f||''},"${w.join('/')}"\n`;
-        });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '運動備份.csv'; a.click();
+        try {
+            let csvContent = "日期,身高,體重,體脂,運動與飲控項目\n";
+            const keys = Object.keys(localStorage).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/)).sort();
+            
+            if (keys.length === 0) {
+                alert("目前尚無紀錄可匯出");
+                return;
+            }
+
+            keys.forEach(k => {
+                const s = JSON.parse(localStorage.getItem('stats_' + k) || '{}');
+                const w = JSON.parse(localStorage.getItem(k) || '[]');
+                // 處理 CSV 格式，項目用分號隔開
+                csvContent += `${k},${s.h || ''},${s.w || ''},${s.f || ''},"${w.join('; ')}"\n`;
+            });
+
+            // 加上 BOM 避免 Excel 開啟亂碼
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Workout_Backup_${new Date().toLocaleDateString('sv-SE')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("匯出失敗，請確認瀏覽器權限。");
+        }
     }
 
     window.onload = () => { initButtons(); selectDate(selectedDateStr); };
