@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>運動管制系統 v3.5</title>
+    <title>運動管制系統 v3.6</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -22,7 +22,6 @@
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* 卡片與身體數據 */
         .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 12px; border: 1px solid var(--border); }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
         .day { padding: 12px 0; border-radius: 10px; font-size: 0.85rem; cursor: pointer; color: #b0ada5; position: relative; }
@@ -35,10 +34,10 @@
         .input-btn-group label { font-size: 0.75rem; color: var(--success); margin-bottom: 8px; font-weight: bold; }
         .input-btn-group input { width: 100%; border: none; background: transparent; text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--text); outline: none; }
 
-        /* 項目網格與滑動刪除 */
         .section-title { font-size: 0.9rem; font-weight: bold; margin: 20px 0 10px 5px; color: var(--success); border-left: 4px solid var(--success); padding-left: 8px; }
         .grid-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 5px; }
         
+        /* 項目容器 */
         .swipe-container { position: relative; overflow: hidden; border-radius: 12px; height: 54px; width: 100%; }
         .opt-card { 
             background: var(--card); border: 1px solid var(--border); border-radius: 12px; height: 100%; width: 100%;
@@ -52,14 +51,12 @@
             font-size: 0.8rem; font-weight: bold; z-index: 1; border-radius: 0 12px 12px 0;
         }
 
-        /* 調整後的「+」新增按鈕樣式 */
         .add-item-card { 
             background: #f0f0eb; border: 1.5px dashed var(--accent); color: var(--accent);
             display: flex; align-items: center; justify-content: center;
             font-weight: bold; font-size: 0.85rem; border-radius: 12px; height: 54px; cursor: pointer;
         }
 
-        /* 表格統計樣式 */
         .gantt-container { width: 100%; overflow-x: auto; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
         table { border-collapse: collapse; width: 100%; font-size: 0.65rem; }
         th, td { border: 1px solid var(--border); padding: 8px 2px; text-align: center; min-width: 25px; }
@@ -117,17 +114,21 @@
     </div>
 
 <script>
-    let menuData = JSON.parse(localStorage.getItem('menuData')) || {
+    // 固定的原始項目
+    const defaultItems = {
         "heavy": ["胸 (重訓)", "背 (重訓)", "腿 (重訓)", "三角 (重訓)", "三頭 (重訓)", "二頭 (重訓)"],
         "cardio": ["跑步機", "橢圓機", "登山機", "飛輪", "室內有氧"],
         "diet": ["一餐合格", "兩餐合格", "三餐+合格"]
     };
 
+    // 儲存使用者新增的項目
+    let customItems = JSON.parse(localStorage.getItem('customItems')) || { "heavy": [], "cardio": [] };
+
     let currentViewDate = new Date();
     let selectedDateStr = new Date().toLocaleDateString('sv-SE');
     let trendChart = null;
 
-    function saveMenu() { localStorage.setItem('menuData', JSON.stringify(menuData)); }
+    function saveCustom() { localStorage.setItem('customItems', JSON.stringify(customItems)); }
 
     function switchPage(pageId) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -138,7 +139,7 @@
         if(pageId === 'summary') updateTrendChart();
     }
 
-    // 滑動邏輯優化
+    // 滑動邏輯
     let touchStartX = 0;
     function handleTouchStart(e) { touchStartX = e.touches[0].clientX; }
     function handleTouchMove(e, el) {
@@ -151,37 +152,47 @@
         else el.style.transform = `translateX(0px)`;
     }
 
-    // 初始化按鈕並將新增按鈕排在最後一個
     function initButtons() {
-        for (let key in menuData) {
+        for (let key in defaultItems) {
             const container = document.getElementById('list-' + key);
             container.innerHTML = '';
             
-            // 渲染現有項目
-            menuData[key].forEach(item => {
+            // 1. 渲染原始項目 (不可滑動刪除)
+            defaultItems[key].forEach(item => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'swipe-container';
-                const del = document.createElement('div');
-                del.className = 'delete-btn'; del.innerText = '刪除';
-                del.onclick = (e) => { e.stopPropagation(); deleteItem(key, item); };
                 const btn = document.createElement('div');
                 btn.className = 'opt-card'; btn.innerText = item; btn.setAttribute('data-name', item);
-                
-                if (key !== 'diet') {
-                    btn.ontouchstart = handleTouchStart;
-                    btn.ontouchmove = (e) => handleTouchMove(e, btn);
-                    btn.ontouchend = (e) => handleTouchEnd(e, btn);
-                }
-
-                btn.onclick = () => {
-                    if (btn.style.transform.includes('-65px')) { btn.style.transform = 'translateX(0px)'; return; }
-                    toggleItem(key, item);
-                };
-                wrapper.appendChild(del); wrapper.appendChild(btn);
+                btn.onclick = () => toggleItem(key, item);
+                wrapper.appendChild(btn);
                 container.appendChild(wrapper);
             });
 
-            // 加入新增按鈕 (僅限重訓與有氧)
+            // 2. 渲染自定義項目 (僅限重訓與有氧，可滑動刪除)
+            if (key !== 'diet' && customItems[key]) {
+                customItems[key].forEach(item => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'swipe-container';
+                    const del = document.createElement('div');
+                    del.className = 'delete-btn'; del.innerText = '刪除';
+                    del.onclick = (e) => { e.stopPropagation(); deleteItem(key, item); };
+                    const btn = document.createElement('div');
+                    btn.className = 'opt-card'; btn.innerText = item; btn.setAttribute('data-name', item);
+                    
+                    btn.ontouchstart = handleTouchStart;
+                    btn.ontouchmove = (e) => handleTouchMove(e, btn);
+                    btn.ontouchend = (e) => handleTouchEnd(e, btn);
+
+                    btn.onclick = () => {
+                        if (btn.style.transform.includes('-65px')) { btn.style.transform = 'translateX(0px)'; return; }
+                        toggleItem(key, item);
+                    };
+                    wrapper.appendChild(del); wrapper.appendChild(btn);
+                    container.appendChild(wrapper);
+                });
+            }
+
+            // 3. 加入新增按鈕
             if (key !== 'diet') {
                 const addCard = document.createElement('div');
                 addCard.className = 'add-item-card';
@@ -195,16 +206,19 @@
 
     function addNewItem(key) {
         const name = prompt("請輸入新項目名稱：");
-        if (name && !menuData[key].includes(name)) {
-            menuData[key].push(name);
-            saveMenu(); initButtons();
+        if (name) {
+            if (defaultItems[key].includes(name) || customItems[key].includes(name)) {
+                alert("項目已存在"); return;
+            }
+            customItems[key].push(name);
+            saveCustom(); initButtons();
         }
     }
 
     function deleteItem(key, item) {
-        if (confirm(`確定刪除「${item}」嗎？`)) {
-            menuData[key] = menuData[key].filter(i => i !== item);
-            saveMenu(); initButtons();
+        if (confirm(`確定刪除手動新增的「${item}」嗎？`)) {
+            customItems[key] = customItems[key].filter(i => i !== item);
+            saveCustom(); initButtons();
         }
     }
 
@@ -212,7 +226,10 @@
         let saved = JSON.parse(localStorage.getItem(selectedDateStr) || '[]');
         if (key === 'diet') {
             if (saved.includes(item)) saved = saved.filter(i => i !== item);
-            else { saved = saved.filter(i => !menuData.diet.includes(i)); saved.push(item); }
+            else { 
+                saved = saved.filter(i => !defaultItems.diet.includes(i)); 
+                saved.push(item); 
+            }
         } else {
             if (saved.includes(item)) saved = saved.filter(i => i !== item);
             else saved.push(item);
@@ -228,7 +245,7 @@
         });
     }
 
-    // 身體數據、月曆、甘特圖、CSV 邏輯 (維持穩定)
+    // 核心邏輯保持
     function calcBMI() {
         const h = document.getElementById('height').value, w = document.getElementById('weight').value;
         if (h > 0 && w > 0) document.getElementById('bmiResult').innerText = `BMI: ${(w/((h/100)**2)).toFixed(1)}`;
@@ -267,7 +284,13 @@
         for (let d = 1; d <= lastDay; d++) headHtml += `<th>${d}</th>`;
         headHtml += `<th class="col-stat">統計</th>`;
         document.getElementById('ganttHead').innerHTML = headHtml;
-        const allItems = [...menuData.heavy, ...menuData.cardio, ...menuData.diet];
+
+        const allItems = [
+            ...defaultItems.heavy, ...(customItems.heavy || []),
+            ...defaultItems.cardio, ...(customItems.cardio || []),
+            ...defaultItems.diet
+        ];
+        
         let bodyHtml = '';
         allItems.forEach(item => {
             let count = 0; let row = `<tr><td>${item}</td>`;
